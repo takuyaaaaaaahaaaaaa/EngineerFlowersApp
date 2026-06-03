@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>紫陽花 咲くアニメ（花火ブルーム）— がんばっタネ</title>
+<style>
+  :root{ --garden:#16203F; --cream:#FBF3DD; --line:rgba(251,243,221,.18); --muted:rgba(251,243,221,.64);}
+  *{box-sizing:border-box;}
+  html,body{margin:0;min-height:100%;background:var(--garden);color:var(--cream);
+    font-family:ui-rounded,"Hiragino Maru Gothic ProN","Yu Gothic","Meiryo",sans-serif;}
+  body{background:radial-gradient(circle at 18% 12%,rgba(37,221,208,.11),transparent 22rem),
+    radial-gradient(circle at 86% 0%,rgba(255,201,60,.08),transparent 20rem),
+    linear-gradient(180deg,#16203F 0%,#111832 100%);}
+  .app{width:min(960px,calc(100vw - 28px));margin:0 auto;padding:24px 0 36px;}
+  h1{margin:0;font-size:clamp(20px,3vw,30px);font-weight:800;}
+  .subtitle{margin:7px 0 18px;color:var(--muted);font-size:13px;line-height:1.7;}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px;}
+  .grp{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:10px;
+    padding:7px 11px;background:rgba(255,255,255,.045);}
+  .grp b{font-size:11px;color:var(--muted);font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+  button{font:inherit;border:1px solid var(--line);background:rgba(255,255,255,.045);
+    color:rgba(251,243,221,.78);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;}
+  button:hover{background:rgba(255,255,255,.09);}
+  button[aria-pressed="true"]{border-color:rgba(37,221,208,.62);color:var(--cream);
+    background:rgba(37,221,208,.12);box-shadow:inset 0 0 0 1px rgba(37,221,208,.18),0 0 24px rgba(37,221,208,.10);}
+  .replay{background:rgba(37,221,208,.16);border-color:rgba(37,221,208,.5);color:var(--cream);font-weight:800;padding:9px 20px;}
+  .stage-wrap{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;}
+  #stage{width:min(64vw,440px);max-width:100%;aspect-ratio:1;border-radius:18px;
+    background:radial-gradient(circle at 50% 52%,rgba(255,255,255,.055),transparent 46%),rgba(255,255,255,.025);
+    border:1px solid rgba(251,243,221,.12);display:block;}
+  .info{flex:1;min-width:230px;font-size:13px;color:rgba(251,243,221,.7);line-height:1.7;}
+  .info p{margin:0 0 9px;}
+  .info b{color:var(--cream);}
+</style>
+</head>
+<body>
+<main class="app">
+  <h1>🎆 紫陽花が咲くアニメ（花火ブルーム）</h1>
+  <p class="subtitle">プロトタイプの実描画（<b>手まり咲き × 浅い切れ込み</b>）をそのまま咲かせる。打ち上げ→破裂→放射→着地、芯は一度光って静止。</p>
+
+  <div class="controls">
+    <button class="replay" id="replay">▶ もう一度咲かせる</button>
+    <div class="grp"><b>モード</b>
+      <button data-mode="quiet" aria-pressed="true">静かな花火（日常）</button>
+      <button data-mode="big" aria-pressed="false">本気花火（リリース）</button>
+    </div>
+    <div class="grp"><b>二段破裂</b>
+      <button data-burst="off" aria-pressed="true">なし</button>
+      <button data-burst="on" aria-pressed="false">あり</button>
+    </div>
+    <div class="grp"><b>Reduce Motion</b>
+      <button data-rm="off" aria-pressed="true">通常</button>
+      <button data-rm="on" aria-pressed="false">配慮版</button>
+    </div>
+  </div>
+
+  <div class="stage-wrap">
+    <canvas id="stage" width="880" height="880" aria-label="咲くアニメ"></canvas>
+    <div class="info">
+      <p>🌙 <b>静かな花火</b>：花序少なめ・放射ゆっくり・スパーク控えめ。日常の「いいね、咲いた」。</p>
+      <p>🎆 <b>本気花火</b>：花序多め・放射広め・スパーク多数。リリース/夢達成の特別演出。</p>
+      <p>💥 <b>二段破裂</b>（未決定）：内側が先に開き、外周の花序が遅れてもう一段弾ける。「頑張った日」の格上げ表現になるか確認。</p>
+      <p>♿️ <b>Reduce Motion</b>：打ち上げ・放射を省き、芯が一度ふわっと光って全花序がフェードイン。</p>
+      <p style="color:rgba(251,243,221,.5);margin-top:14px;">※本番はSwiftUIで実装。これは形・色・タイミングの検討用。色は確定5色、芯はクリーム固定。</p>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ===== 以下、hydrangea-prototype.html の描画関数を流用（手まり咲き=mophead / 浅い切れ込み=notched 固定） ===== */
+const categories=[
+  {key:"work",label:"仕事",color:"#A77BFF",hue:258},
+  {key:"care",label:"家事・育児",color:"#FF5C9E",hue:333},
+  {key:"learning",label:"学習・開発",color:"#6FE85C",hue:113},
+  {key:"exercise",label:"からだ",color:"#25DDD0",hue:176},
+  {key:"social",label:"趣味・交流",color:"#FFC93C",hue:44}
+];
+function clamp(v,min,max){return Math.min(Math.max(v,min),max);}
+function hexToRgb(hex){const v=parseInt(hex.replace("#",""),16);return{r:(v>>16)&255,g:(v>>8)&255,b:v&255};}
+function rgbToHsl({r,g,b}){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h=0,s=0;const l=(max+min)/2;
+  if(max!==min){const d=max-min;s=l>0.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4;}h/=6;}return{h,s,l};}
+function hslToCss(h,s,l,a=1){const hue=((h*360)%360+360)%360;return`hsla(${hue.toFixed(1)},${(s*100).toFixed(1)}%,${(l*100).toFixed(1)}%,${a})`;}
+function noise(seed){const v=Math.sin(seed*12.9898+78.233)*43758.5453;return v-Math.floor(v);}
+function driftColor(category,seed,depth,drift,alpha){const hsl=rgbToHsl(hexToRgb(category.color));const n=noise(seed)*2-1;
+  const h=hsl.h+n*0.034*drift;const s=clamp(hsl.s-0.10*drift*depth,0.48,1);const l=clamp(hsl.l+0.15*drift*depth+0.045*n*drift,0.42,0.72);return hslToCss(h,s,l,alpha);}
+function hueDistance(a,b){const diff=Math.abs(a-b)%360;return Math.min(diff,360-diff);}
+function scaledCategoryCounts(points,floretCount){
+  const entries=categories.map(c=>({category:c,points:Math.max(0,points[c.key]||0)})).filter(i=>i.points>0);
+  if(!entries.length)return new Map([[categories[0],floretCount]]);
+  const total=entries.reduce((s,i)=>s+i.points,0);const counts=new Map();const remainders=[];let used=0;
+  for(const item of entries){const exact=item.points/total*floretCount;const base=Math.max(1,Math.floor(exact));
+    counts.set(item.category,base);remainders.push({category:item.category,rest:exact-base});used+=base;}
+  while(used>floretCount){const cand=[...counts.entries()].filter(([,c])=>c>1).sort((a,b)=>b[1]-a[1])[0];if(!cand)break;counts.set(cand[0],cand[1]-1);used--;}
+  for(const item of remainders.sort((a,b)=>b.rest-a.rest)){if(used>=floretCount)break;counts.set(item.category,(counts.get(item.category)||0)+1);used++;}
+  return counts;}
+function arrangeCategories(points,floretCount){
+  const remaining=scaledCategoryCounts(points,floretCount);const arranged=[];
+  while(arranged.length<floretCount){
+    const candidates=[...remaining.entries()].filter(([,c])=>c>0).map(([category,count])=>({category,count}))
+      .sort((a,b)=>b.count-a.count||a.category.hue-b.category.hue);
+    if(!candidates.length)break;
+    const prev=arranged[arranged.length-1];
+    const chosen=candidates.find(i=>!prev||(i.category.key!==prev.key&&hueDistance(i.category.hue,prev.hue)>=64))
+      ||candidates.find(i=>!prev||i.category.key!==prev.key)||candidates[0];
+    arranged.push(chosen.category);remaining.set(chosen.category,remaining.get(chosen.category)-1);}
+  return arranged.length?arranged:[categories[0]];}
+function point(o,a,d){return{x:o.x+Math.cos(a)*d,y:o.y+Math.sin(a)*d};}
+function localPoint(c,a,fwd,side){return{x:c.x+Math.cos(a)*fwd+Math.cos(a+Math.PI*0.5)*side,y:c.y+Math.sin(a)*fwd+Math.sin(a+Math.PI*0.5)*side};}
+function drawLeafPath(ctx,center,angle,length,width){
+  const base=point(center,angle+Math.PI,length*0.42);const tip=point(center,angle,length*0.58);
+  const left=point(center,angle-Math.PI*0.5,width);const right=point(center,angle+Math.PI*0.5,width);
+  ctx.beginPath();ctx.moveTo(base.x,base.y);
+  ctx.bezierCurveTo(left.x,left.y,point(tip,angle-Math.PI*0.8,width).x,point(tip,angle-Math.PI*0.8,width).y,tip.x,tip.y);
+  ctx.bezierCurveTo(point(tip,angle+Math.PI*0.8,width).x,point(tip,angle+Math.PI*0.8,width).y,right.x,right.y,base.x,base.y);ctx.closePath();}
+function drawSepalPath(ctx,center,angle,length,width,curl){
+  // notched（浅い切れ込み）固定
+  const cfg={shoulder:1.04,lobe:0.43,notchDepth:0.16,tip:1.00,base:0.55};
+  const base=localPoint(center,angle,length*0.04,0);
+  const waistLeft=localPoint(center,angle,length*0.22,-width*(cfg.base+curl*0.06));
+  const shoulderLeft=localPoint(center,angle,length*0.58,-width*(cfg.shoulder+curl*0.05));
+  const lobeLeft=localPoint(center,angle,length*0.90,-width*cfg.lobe);
+  const notch=localPoint(center,angle,length*(cfg.tip-cfg.notchDepth),0);
+  const lobeRight=localPoint(center,angle,length*0.90,width*cfg.lobe);
+  const shoulderRight=localPoint(center,angle,length*0.58,width*(cfg.shoulder+curl*0.05));
+  const waistRight=localPoint(center,angle,length*0.22,width*(cfg.base+curl*0.06));
+  ctx.beginPath();ctx.moveTo(base.x,base.y);
+  ctx.bezierCurveTo(waistLeft.x,waistLeft.y,shoulderLeft.x,shoulderLeft.y,lobeLeft.x,lobeLeft.y);
+  ctx.quadraticCurveTo(localPoint(center,angle,length*1.00,-width*0.14).x,localPoint(center,angle,length*1.00,-width*0.14).y,notch.x,notch.y);
+  ctx.quadraticCurveTo(localPoint(center,angle,length*1.00,width*0.14).x,localPoint(center,angle,length*1.00,width*0.14).y,lobeRight.x,lobeRight.y);
+  ctx.bezierCurveTo(shoulderRight.x,shoulderRight.y,waistRight.x,waistRight.y,base.x,base.y);ctx.closePath();}
+function drawCreamCore(ctx,x,y,radius,glow=true,boost=1){
+  if(glow){ctx.save();ctx.shadowBlur=radius*4*boost;ctx.shadowColor="rgba(251,243,221,.55)";
+    ctx.fillStyle=`rgba(251,243,221,${0.70*Math.min(1,boost)})`;ctx.beginPath();ctx.arc(x,y,radius*1.2*boost,0,Math.PI*2);ctx.fill();ctx.restore();}
+  ctx.fillStyle="rgba(251,243,221,.92)";ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();}
+function drawStemAndLeaves(ctx,size,center,params,alpha=1){
+  const min=size;ctx.save();ctx.globalAlpha=alpha;ctx.lineCap="round";
+  ctx.strokeStyle="rgba(36,76,56,.92)";ctx.lineWidth=Math.max(1,min*0.018);ctx.shadowBlur=0;
+  ctx.beginPath();ctx.moveTo(center.x,min*0.95);
+  ctx.bezierCurveTo(center.x-min*0.025,min*0.80,center.x+min*0.035,min*0.68,center.x,center.y+min*0.16);ctx.stroke();ctx.restore();
+  for(const side of[-1,1]){ctx.save();ctx.globalAlpha=alpha;
+    const leafCenter={x:center.x+side*min*0.13,y:min*0.76};
+    drawLeafPath(ctx,leafCenter,side*-0.62,min*0.24,min*0.10);
+    ctx.fillStyle="rgba(36,76,56,.5)";ctx.strokeStyle="rgba(36,76,56,.95)";
+    ctx.lineWidth=Math.max(0.8,min*0.012);ctx.fill();ctx.stroke();ctx.restore();}}
+function cubic(p0,c1,c2,p3,t){const u=1-t;
+  return{x:u*u*u*p0.x+3*u*u*t*c1.x+3*u*t*t*c2.x+t*t*t*p3.x,
+         y:u*u*u*p0.y+3*u*u*t*c1.y+3*u*t*t*c2.y+t*t*t*p3.y};}
+function stemPoints(size,center){const m=size;const p0={x:center.x,y:m*0.95},
+  c1={x:center.x-m*0.025,y:m*0.80},c2={x:center.x+m*0.035,y:m*0.66},p3={x:center.x,y:center.y+m*0.02};
+  const pts=[];for(let i=0;i<=64;i++)pts.push(cubic(p0,c1,c2,p3,i/64));return pts;}
+// 茎が伸びる→葉→さらに伸びる（花火の打ち上げ）。growP=0..1で茎が下から伸び、先端に光点。
+function drawStemGrowing(ctx,size,center,params,growP,leafP){
+  const m=size;const pts=stemPoints(size,center);const end=Math.max(1,Math.floor(growP*(pts.length-1)));
+  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.strokeStyle="rgba(36,76,56,.95)";ctx.lineWidth=Math.max(1,m*0.018);
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<=end;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();
+  ctx.restore();
+  // 葉（茎の途中・y≈0.76付近から左右に展開）
+  if(leafP>0){const lp=clamp(leafP,0,1);
+    for(const side of[-1,1]){ctx.save();
+      const leafCenter={x:center.x+side*m*0.13*lp,y:m*0.76};
+      ctx.translate(leafCenter.x,leafCenter.y);ctx.scale(lp,lp);ctx.translate(-leafCenter.x,-leafCenter.y);
+      drawLeafPath(ctx,leafCenter,side*-0.62,m*0.24,m*0.10);
+      ctx.fillStyle="rgba(36,76,56,.5)";ctx.strokeStyle="rgba(36,76,56,.95)";
+      ctx.lineWidth=Math.max(0.8,m*0.012);ctx.fill();ctx.stroke();ctx.restore();}}
+  // 伸びる先端の光点（花火の弾）
+  if(growP<1){const tip=pts[end];ctx.save();ctx.fillStyle="rgba(251,243,221,.95)";
+    ctx.shadowBlur=16;ctx.shadowColor="#FBF3DD";ctx.beginPath();
+    ctx.arc(tip.x,tip.y,m*0.012,0,Math.PI*2);ctx.fill();ctx.restore();}}
+function drawDomeUnderlay(ctx,size,params){
+  const center={x:size*0.5,y:size*0.50};const radius=size*(0.31+params.domeStrength*0.055);
+  ctx.save();ctx.translate(center.x,center.y+radius*0.48);ctx.scale(1.05,0.24);
+  ctx.fillStyle="rgba(0,0,0,.14)";ctx.filter=`blur(${Math.max(2,params.glowRadius*0.55)}px)`;
+  ctx.beginPath();ctx.arc(0,0,radius*0.86,0,Math.PI*2);ctx.fill();ctx.restore();ctx.filter="none";}
+function makeFlorets(size,count,points,params){
+  const center={x:size*0.5,y:size*0.505};const arranged=arrangeCategories(points,count);
+  const goldenAngle=Math.PI*(3-Math.sqrt(5));const maxRadius=size*(0.285+params.domeStrength*0.035);
+  const baseSize=size*(count<8?0.18:0.148);const result=[];
+  for(let i=0;i<count;i++){
+    const t=count===1?0:i/(count-1);let radiusRatio=Math.sqrt(t);let angle=i*goldenAngle;
+    const domePull=params.domeStrength*0.26;const radius=maxRadius*radiusRatio*(1-domePull*(1-radiusRatio));
+    const sphereZ=Math.sqrt(Math.max(0,1-radiusRatio*radiusRatio));
+    const yLift=-sphereZ*size*params.domeStrength*0.070+Math.pow(radiusRatio,2)*size*params.domeStrength*0.018;
+    const edgeScale=1-params.domeStrength*0.34*radiusRatio;const densityScale=1+params.domeStrength*0.24*sphereZ;
+    const jitter=size*0.010;const jitterX=(noise(i+31)*2-1)*jitter;const jitterY=(noise(i+47)*2-1)*jitter;
+    const x=center.x+Math.cos(angle)*radius+jitterX;
+    const y=center.y+Math.sin(angle)*radius*(0.70-params.domeStrength*0.10)+yLift+jitterY;
+    const floretSize=baseSize*edgeScale*densityScale;const faceAngle=Math.atan2(y-center.y,x-center.x);
+    const sideView=clamp((radiusRatio-0.52)/0.48,0,1)*params.domeStrength;
+    result.push({x,y,category:arranged[i%arranged.length],size:floretSize,rotation:angle+(i%4)*0.27,
+      depth:sphereZ,rim:radiusRatio,faceAngle,sideView,layer:y+sphereZ*size*0.20,seed:i});}
+  return result.sort((a,b)=>a.layer-b.layer);}
+function drawFloret(ctx,floret,params,crisp){
+  const pinwheel=clamp(params.sepalOverlap,0,1);const domeLight=0.72+floret.depth*0.34;
+  const am=params.alphaMul??1;
+  const alpha=(crisp?params.glassOpacity*domeLight:Math.min(0.70,params.glassOpacity*0.74*domeLight))*am;
+  const strokeAlpha=(crisp?0.78+floret.depth*0.22:0.58+floret.depth*0.18)*am;
+  const color=driftColor(floret.category,floret.seed,floret.depth,params.hueDrift,alpha);
+  const stroke=driftColor(floret.category,floret.seed,floret.depth,params.hueDrift,strokeAlpha);
+  const lineWidth=crisp?Math.max(0.55,floret.size*(0.007+floret.depth*0.004)):Math.max(1,floret.size*0.020);
+  const radialSquash=1-floret.sideView*0.55;const petalCount=4;
+  const petalLength=floret.size*(0.70-floret.sideView*0.12);const petalWidth=floret.size*(0.41+pinwheel*0.04);
+  const stepAngle=Math.PI*2/petalCount;
+  ctx.save();ctx.translate(floret.x,floret.y);ctx.rotate(floret.faceAngle);ctx.scale(radialSquash,1);ctx.rotate(-floret.faceAngle);
+  if(!crisp){ctx.shadowBlur=params.glowRadius*params.pixelRatio*(0.78+floret.depth*0.34);ctx.shadowColor=floret.category.color;}
+  for(let petal=0;petal<petalCount;petal++){
+    const spin=floret.rotation+petal*stepAngle+pinwheel*0.34;
+    const offset=point({x:0,y:0},spin-0.8,floret.size*pinwheel*0.07);
+    drawSepalPath(ctx,{x:offset.x,y:offset.y},spin,petalLength,petalWidth,pinwheel);
+    ctx.fillStyle=color;ctx.strokeStyle=stroke;ctx.lineWidth=lineWidth;ctx.fill();ctx.stroke();
+    if(crisp&&floret.size>16&&floret.depth>0.34){ctx.strokeStyle=`rgba(255,255,255,${(0.16+floret.depth*0.20)*am})`;
+      ctx.lineWidth=Math.max(0.35,lineWidth*0.32);ctx.stroke();}}
+  ctx.restore();
+  if(crisp&&floret.size>16&&floret.depth>0.22)drawCreamCore(ctx,floret.x,floret.y,floret.size*(0.085-floret.sideView*0.035),false);}
+
+/* ===== ここから咲くアニメ（花火ブルーム）の制御 ===== */
+const canvas=document.getElementById("stage");
+const ctx=canvas.getContext("2d");
+const baseParams={preset:"mophead",sepalShape:"notched",sepalOverlap:0.72,hueDrift:0.22,domeStrength:0.78,glassOpacity:0.54};
+const MODES={
+  quiet:{points:{work:6,learning:4,exercise:3},glowRadius:6.5,sparkN:12,grow:900,floretDur:600,stagger:24,spread:1.0,burstScale:6},
+  big:{points:{work:8,care:6,exercise:4,learning:4},glowRadius:8.5,sparkN:30,grow:820,floretDur:680,stagger:15,spread:1.18,burstScale:9}
+};
+// 成長フェーズの内訳（grow を 茎①→葉→茎② に配分）
+const GROW={stem1:0.40,leaf:0.66};  // 0..stem1=茎が葉まで伸びる, stem1..leaf=葉が展開, leaf..1=さらに茎が伸びる
+let mode="quiet",burst2=false,rm=false;
+let florets=[],center={x:0,y:0},size=0,pr=1,params=null;
+let startT=0,raf=0,sparks=[];
+
+function easeOutBack(p){const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(p-1,3)+c1*Math.pow(p-1,2);}
+function easeOut(p){return 1-Math.pow(1-p,3);}
+
+function setup(){
+  const rect=canvas.getBoundingClientRect();size=Math.max(1,Math.round(rect.width||440));
+  pr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.round(size*pr);canvas.height=Math.round(size*pr);
+  const m=MODES[mode];params={...baseParams,...m,size,pixelRatio:pr};
+  center={x:size*0.5,y:size*0.52};
+  const count=Object.values(m.points).reduce((a,b)=>a+b,0);
+  florets=makeFlorets(size,count,m.points,params);
+  // 二段破裂：外周(rim>=0.62)を wave1、内側を wave0
+  const launchEnd=m.grow;
+  const wave0=florets.filter(f=>!(burst2&&f.rim>=0.62));
+  const wave1=florets.filter(f=>burst2&&f.rim>=0.62);
+  const wave0Span=wave0.length*m.stagger;
+  florets.forEach(f=>{
+    const isW1=burst2&&f.rim>=0.62;
+    const arr=isW1?wave1:wave0;const idx=arr.indexOf(f);
+    const waveStart=isW1?(launchEnd+wave0Span+260):launchEnd;
+    f._start=waveStart+idx*m.stagger;f._wave=isW1?1:0;});
+  // バースト発火時刻
+  params._burstTimes=[launchEnd];
+  if(burst2)params._burstTimes.push(launchEnd+wave0Span+260);
+  // スパーク
+  sparks=[];
+  for(let i=0;i<m.sparkN;i++){const a=(i/m.sparkN)*Math.PI*2;const dist=size*0.30*m.spread*(0.7+0.5*((i*53)%7)/7);
+    sparks.push({a,dist,col:categories[i%5].color,delay:i*4});}
+}
+
+function frame(now){
+  const t=now-startT;
+  ctx.setTransform(pr,0,0,pr,0,0);ctx.clearRect(0,0,size,size);
+  const m=MODES[mode];
+
+  if(rm){ drawStemAndLeaves(ctx,size,center,params,1);drawDomeUnderlay(ctx,size,params);
+    drawReduced(t); raf=requestAnimationFrame(frame); if(t>900)cancelAnimationFrame(raf); return; }
+
+  // 打ち上げ＝成長：茎①が葉まで伸びる → 葉が展開 → 茎②がさらに伸びて先端で破裂
+  const gp=clamp(t/m.grow,0,1);
+  const stemGrow = gp<GROW.stem1 ? gp                                   // ①下から葉の高さまで
+                 : gp<GROW.leaf  ? GROW.stem1                           // 葉を出す間は一旦停止
+                 : GROW.stem1+(1-GROW.stem1)*((gp-GROW.leaf)/(1-GROW.leaf)); // ②さらに伸びて頂点へ
+  const leafP=clamp((gp-GROW.stem1)/(GROW.leaf-GROW.stem1),0,1);
+  drawStemGrowing(ctx,size,center,params,easeOut(stemGrow),leafP);
+  drawDomeUnderlay(ctx,size,params);
+
+  // バースト閃光
+  for(const bt of params._burstTimes){
+    const bp=(t-bt)/(mode==="big"?420:340);
+    if(bp>=0&&bp<=1){ctx.save();ctx.globalAlpha=(1-bp)*0.9;ctx.fillStyle="#fff";
+      ctx.beginPath();ctx.arc(center.x,center.y,size*0.02*(1+bp*m.burstScale),0,Math.PI*2);ctx.fill();ctx.restore();}
+  }
+
+  // スパーク（一段目バースト基準）
+  const sp0=params._burstTimes[0];
+  for(const s of sparks){const sp=(t-sp0-s.delay)/(mode==="big"?680:520);
+    if(sp>=0&&sp<=1){const d=s.dist*easeOut(sp);ctx.save();ctx.globalAlpha=1-sp;ctx.fillStyle=s.col;
+      ctx.shadowBlur=4;ctx.shadowColor=s.col;ctx.beginPath();
+      ctx.arc(center.x+Math.cos(s.a)*d,center.y+Math.sin(s.a)*d,size*0.006,0,Math.PI*2);ctx.fill();ctx.restore();}}
+
+  // 花序（放射→着地）：soft → crisp の二層
+  const drawSet=(crisp)=>{
+    for(const f of florets){
+      const p=clamp((t-f._start)/m.floretDur,0,1);if(p<=0)continue;
+      const e=easeOutBack(Math.min(1,p));
+      const af={...f,x:center.x+(f.x-center.x)*Math.min(1,p<0.85?easeOut(p/0.85):1),
+        y:center.y+(f.y-center.y)*Math.min(1,p<0.85?easeOut(p/0.85):1),
+        size:f.size*clamp(e,0,1.12)};
+      drawFloret(ctx,af,{...params,alphaMul:clamp(p*1.6,0,1)},crisp);}};
+  drawSet(false);drawSet(true);
+
+  // 中心の芯：バースト時に強く光り、その後静止
+  const coreP=clamp((t-params._burstTimes[0])/620,0,1);
+  if(coreP>0){const boost=1+(1-easeOut(coreP))*2.4;
+    drawCreamCore(ctx,center.x,center.y,size*0.035,true,boost*clamp(coreP*3,0,1));}
+
+  const last=Math.max(...florets.map(f=>f._start))+m.floretDur+700;
+  if(t<last)raf=requestAnimationFrame(frame);
+}
+
+function drawReduced(t){
+  const coreP=clamp(t/500,0,1);
+  florets.forEach((f,i)=>{const p=clamp((t-120)/420,0,1);
+    drawFloret(ctx,f,{...params,alphaMul:p},false);});
+  florets.forEach((f)=>{const p=clamp((t-120)/420,0,1);
+    drawFloret(ctx,f,{...params,alphaMul:p},true);});
+  if(coreP>0){const boost=1+(1-easeOut(coreP))*1.6;drawCreamCore(ctx,center.x,center.y,size*0.035,true,boost*clamp(coreP*3,0,1));}
+}
+
+function play(){cancelAnimationFrame(raf);setup();startT=performance.now();raf=requestAnimationFrame(frame);}
+document.getElementById("replay").addEventListener("click",play);
+function bind(attr,set){document.querySelectorAll(`[${attr}]`).forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(`[${attr}]`).forEach(x=>x.setAttribute("aria-pressed",String(x===b)));set(b);play();}));}
+bind("data-mode",b=>mode=b.dataset.mode);
+bind("data-burst",b=>burst2=b.dataset.burst==="on");
+bind("data-rm",b=>rm=b.dataset.rm==="on");
+window.addEventListener("resize",()=>{setup();});
+play();
+</script>
+</body>
+</html>

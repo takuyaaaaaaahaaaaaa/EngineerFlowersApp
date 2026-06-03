@@ -1,0 +1,1081 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EngineerFlowers Hydrangea Prototype</title>
+  <style>
+    :root {
+      --garden: #16203F;
+      --cream: #FBF3DD;
+      --cream-soft: #F5EFD8;
+      --panel: rgba(255, 255, 255, .065);
+      --panel-strong: rgba(255, 255, 255, .105);
+      --line: rgba(251, 243, 221, .18);
+      --muted: rgba(251, 243, 221, .64);
+      --work: #A77BFF;
+      --care: #FF5C9E;
+      --learning: #6FE85C;
+      --exercise: #25DDD0;
+      --social: #FFC93C;
+      color-scheme: dark;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--garden);
+      color: var(--cream);
+      font-family: ui-rounded, "Hiragino Maru Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 18% 12%, rgba(37, 221, 208, .11), transparent 22rem),
+        radial-gradient(circle at 86% 0%, rgba(255, 201, 60, .08), transparent 20rem),
+        linear-gradient(180deg, #16203F 0%, #111832 100%);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1180px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 22px 0 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(21px, 3vw, 34px);
+      line-height: 1.12;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+      max-width: 720px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      justify-content: flex-end;
+      min-width: min(420px, 100%);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 5px 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .045);
+      color: rgba(251, 243, 221, .82);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--c);
+      box-shadow: 0 0 10px var(--c);
+    }
+
+    .workbench {
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: linear-gradient(180deg, var(--panel), rgba(255, 255, 255, .035));
+      box-shadow: 0 20px 80px rgba(0, 0, 0, .24);
+      overflow: hidden;
+    }
+
+    .controls {
+      padding: 14px;
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      color: rgba(251, 243, 221, .92);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .preset-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin-bottom: 16px;
+    }
+
+    .shape-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      margin: 0 0 16px;
+    }
+
+    .preset,
+    .shape-choice {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .045);
+      color: rgba(251, 243, 221, .76);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .shape-choice {
+      min-height: 34px;
+      font-size: 11px;
+    }
+
+    .preset[aria-pressed="true"],
+    .shape-choice[aria-pressed="true"] {
+      border-color: rgba(37, 221, 208, .62);
+      color: var(--cream);
+      background: rgba(37, 221, 208, .12);
+      box-shadow: inset 0 0 0 1px rgba(37, 221, 208, .18), 0 0 24px rgba(37, 221, 208, .10);
+    }
+
+    .control {
+      padding: 11px 0;
+      border-top: 1px solid rgba(251, 243, 221, .10);
+    }
+
+    .control label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: rgba(251, 243, 221, .88);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .value {
+      color: rgba(251, 243, 221, .58);
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #25DDD0;
+    }
+
+    .category-editor {
+      display: grid;
+      gap: 9px;
+      margin-top: 4px;
+    }
+
+    .category-line {
+      display: grid;
+      grid-template-columns: 74px minmax(0, 1fr) 26px;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(251, 243, 221, .76);
+    }
+
+    .stage {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 560px;
+    }
+
+    .stage-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 16px 0;
+    }
+
+    .readout {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      justify-content: flex-end;
+      color: rgba(251, 243, 221, .62);
+      font-size: 12px;
+    }
+
+    .readout b {
+      color: var(--cream);
+      font-weight: 800;
+    }
+
+    .canvas-wrap {
+      display: grid;
+      place-items: center;
+      padding: 8px 18px 18px;
+      min-height: 410px;
+    }
+
+    #mainCanvas {
+      width: min(52vw, 440px);
+      max-width: 100%;
+      aspect-ratio: 1;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 50% 52%, rgba(255, 255, 255, .055), transparent 46%),
+        rgba(255, 255, 255, .025);
+      border: 1px solid rgba(251, 243, 221, .12);
+    }
+
+    .comparisons {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .comparison-block {
+      padding: 14px;
+    }
+
+    .growth-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .tile {
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid rgba(251, 243, 221, .12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .tile canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 1;
+    }
+
+    .tile-title {
+      margin-top: 6px;
+      color: rgba(251, 243, 221, .72);
+      font-size: 12px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .mini-cell {
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(251, 243, 221, .10);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .note {
+      padding: 12px;
+      border: 1px solid rgba(251, 243, 221, .11);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, .12);
+      color: rgba(251, 243, 221, .66);
+      font-size: 12px;
+      line-height: 1.62;
+    }
+
+    .note strong {
+      display: block;
+      color: rgba(251, 243, 221, .92);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 860px) {
+      .topbar,
+      .workbench {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .legend,
+      .readout {
+        justify-content: flex-start;
+      }
+
+      #mainCanvas {
+        width: min(82vw, 430px);
+      }
+
+      .growth-grid,
+      .notes {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 520px) {
+      .app {
+        width: min(100vw - 20px, 1180px);
+        padding-top: 12px;
+      }
+
+      .preset-row,
+      .shape-row,
+      .growth-grid,
+      .notes {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <h1>がんばっタネ / 紫陽花ビジュアル検討</h1>
+        <p class="subtitle">点を花序として扱い、量は毬の育ち方、種類は花序ごとのソリッド色で読む。ネオン線とガラス質だけで、結晶面には寄せないプロトタイプ。</p>
+      </div>
+      <div class="legend" aria-label="カテゴリ凡例">
+        <span class="chip"><i class="dot" style="--c: var(--work)"></i>仕事</span>
+        <span class="chip"><i class="dot" style="--c: var(--care)"></i>家事・育児</span>
+        <span class="chip"><i class="dot" style="--c: var(--learning)"></i>学習・開発</span>
+        <span class="chip"><i class="dot" style="--c: var(--exercise)"></i>運動</span>
+        <span class="chip"><i class="dot" style="--c: var(--social)"></i>趣味・交流</span>
+      </div>
+    </header>
+
+    <section class="workbench">
+      <aside class="panel controls">
+        <p class="section-title">Preset</p>
+        <div class="preset-row">
+          <button class="preset" data-preset="mophead" aria-pressed="true">手まり咲き</button>
+          <button class="preset" data-preset="lacecap" aria-pressed="false">額咲き</button>
+          <button class="preset" data-preset="loose" aria-pressed="false">ゆるい房</button>
+        </div>
+
+        <p class="section-title">Shape</p>
+        <div class="shape-row" aria-label="萼片形状">
+          <button class="shape-choice" data-shape="notched" aria-pressed="true">浅い切れ込み</button>
+          <button class="shape-choice" data-shape="round" aria-pressed="false">丸萼</button>
+          <button class="shape-choice" data-shape="heart" aria-pressed="false">ハート</button>
+          <button class="shape-choice" data-shape="slender" aria-pressed="false">細め</button>
+          <button class="shape-choice" data-shape="five" aria-pressed="false">5枚</button>
+          <button class="shape-choice" data-shape="shuriken" aria-pressed="false">手裏剣</button>
+          <button class="shape-choice" data-shape="double" aria-pressed="false">八重</button>
+        </div>
+        <div class="control">
+          <label for="floretCount">花序数 <span class="value" data-value="floretCount"></span></label>
+          <input id="floretCount" type="range" min="1" max="24" step="1" value="17">
+        </div>
+        <div class="control">
+          <label for="sepalOverlap">萼の重なり <span class="value" data-value="sepalOverlap"></span></label>
+          <input id="sepalOverlap" type="range" min="0" max="1" step="0.01" value="0.72">
+        </div>
+        <div class="control">
+          <label for="hueDrift">hueDrift <span class="value" data-value="hueDrift"></span></label>
+          <input id="hueDrift" type="range" min="0" max="0.70" step="0.01" value="0.22">
+        </div>
+        <div class="control">
+          <label for="domeStrength">domeStrength <span class="value" data-value="domeStrength"></span></label>
+          <input id="domeStrength" type="range" min="0" max="1" step="0.01" value="0.78">
+        </div>
+        <div class="control">
+          <label for="glassOpacity">glassOpacity <span class="value" data-value="glassOpacity"></span></label>
+          <input id="glassOpacity" type="range" min="0.12" max="0.85" step="0.01" value="0.54">
+        </div>
+        <div class="control">
+          <label for="glowRadius">glowRadius <span class="value" data-value="glowRadius"></span></label>
+          <input id="glowRadius" type="range" min="0" max="13" step="0.1" value="6.5">
+        </div>
+
+        <p class="section-title" style="margin-top:18px">Category Points</p>
+        <div class="category-editor">
+          <div class="category-line"><span>仕事</span><input id="work" type="range" min="0" max="16" step="1" value="8"><b class="value" data-value="work"></b></div>
+          <div class="category-line"><span>育児</span><input id="care" type="range" min="0" max="16" step="1" value="6"><b class="value" data-value="care"></b></div>
+          <div class="category-line"><span>学習</span><input id="learning" type="range" min="0" max="16" step="1" value="0"><b class="value" data-value="learning"></b></div>
+          <div class="category-line"><span>運動</span><input id="exercise" type="range" min="0" max="16" step="1" value="3"><b class="value" data-value="exercise"></b></div>
+          <div class="category-line"><span>交流</span><input id="social" type="range" min="0" max="16" step="1" value="0"><b class="value" data-value="social"></b></div>
+        </div>
+      </aside>
+
+      <section class="panel stage">
+        <div class="stage-head">
+          <p class="section-title">Live Canvas</p>
+          <div class="readout">
+            <span>量 <b id="stageLabel">大ダリア相当</b></span>
+            <span>総点 <b id="totalPoints">17</b></span>
+            <span>表示上限 <b>24</b></span>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="mainCanvas" width="720" height="720" aria-label="紫陽花プロトタイプ"></canvas>
+        </div>
+      </section>
+    </section>
+
+    <section class="comparisons">
+      <div class="panel comparison-block">
+        <p class="section-title">Growth Comparison</p>
+        <div class="growth-grid" id="growthGrid"></div>
+      </div>
+
+      <div class="panel comparison-block">
+        <p class="section-title">Calendar Scale / 44pt</p>
+        <div class="strip" id="miniStrip"></div>
+      </div>
+
+      <div class="notes">
+        <div class="note"><strong>額咲き確認</strong>44pt帯で中央の抜けが読めるかを見る。消える場合は季節限定・拡大時向け。</div>
+        <div class="note"><strong>hueDrift</strong>0.15〜0.30は凡例性が残りやすい。0.45超は幻想寄りでカテゴリ判読が弱くなる。</div>
+        <div class="note"><strong>段階モデル</strong>毬が育つ表現は量と相性が良い。芽から大きな毬への連続性を横比較で見る。</div>
+        <div class="note"><strong>描画負荷</strong>30マス常時表示ではブラーを抑え、静止キャッシュ化を前提に評価する。</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const categories = [
+      { key: "work", label: "仕事", color: "#A77BFF", hue: 258 },
+      { key: "care", label: "家事・育児", color: "#FF5C9E", hue: 333 },
+      { key: "learning", label: "学習・開発", color: "#6FE85C", hue: 113 },
+      { key: "exercise", label: "運動", color: "#25DDD0", hue: 176 },
+      { key: "social", label: "趣味・交流", color: "#FFC93C", hue: 44 }
+    ];
+
+    const presets = {
+      mophead: { sepalOverlap: 0.72, hueDrift: 0.22, domeStrength: 0.78, glassOpacity: 0.54, glowRadius: 6.5 },
+      lacecap: { sepalOverlap: 0.38, hueDrift: 0.16, domeStrength: 0.42, glassOpacity: 0.48, glowRadius: 5.0 },
+      loose: { sepalOverlap: 0.58, hueDrift: 0.30, domeStrength: 0.58, glassOpacity: 0.42, glowRadius: 7.0 }
+    };
+
+    const state = {
+      preset: "mophead",
+      sepalShape: "notched",
+      floretCount: 17,
+      sepalOverlap: 0.72,
+      hueDrift: 0.22,
+      domeStrength: 0.78,
+      glassOpacity: 0.54,
+      glowRadius: 6.5,
+      points: { work: 8, care: 6, learning: 0, exercise: 3, social: 0 }
+    };
+
+    const controls = [...document.querySelectorAll("input[type='range']")];
+    const mainCanvas = document.querySelector("#mainCanvas");
+    const growthGrid = document.querySelector("#growthGrid");
+    const miniStrip = document.querySelector("#miniStrip");
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function hexToRgb(hex) {
+      const value = parseInt(hex.replace("#", ""), 16);
+      return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+    }
+
+    function rgbToHsl({ r, g, b }) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h = 0;
+      let s = 0;
+      const l = (max + min) / 2;
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          default: h = (r - g) / d + 4;
+        }
+        h /= 6;
+      }
+      return { h, s, l };
+    }
+
+    function hslToCss(h, s, l, a = 1) {
+      const hue = ((h * 360) % 360 + 360) % 360;
+      return `hsla(${hue.toFixed(1)}, ${(s * 100).toFixed(1)}%, ${(l * 100).toFixed(1)}%, ${a})`;
+    }
+
+    function noise(seed) {
+      const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+      return value - Math.floor(value);
+    }
+
+    function driftColor(category, seed, depth, drift, alpha) {
+      const hsl = rgbToHsl(hexToRgb(category.color));
+      const n = noise(seed) * 2 - 1;
+      const h = hsl.h + n * 0.034 * drift;
+      const s = clamp(hsl.s - 0.10 * drift * depth, 0.48, 1);
+      const l = clamp(hsl.l + 0.15 * drift * depth + 0.045 * n * drift, 0.42, 0.72);
+      return hslToCss(h, s, l, alpha);
+    }
+
+    function hueDistance(a, b) {
+      const diff = Math.abs(a - b) % 360;
+      return Math.min(diff, 360 - diff);
+    }
+
+    function scaledCategoryCounts(points, floretCount) {
+      const entries = categories
+        .map(category => ({ category, points: Math.max(0, points[category.key] || 0) }))
+        .filter(item => item.points > 0);
+      if (!entries.length) return new Map([[categories[0], floretCount]]);
+
+      const total = entries.reduce((sum, item) => sum + item.points, 0);
+      const counts = new Map();
+      const remainders = [];
+      let used = 0;
+
+      for (const item of entries) {
+        const exact = item.points / total * floretCount;
+        const base = Math.max(1, Math.floor(exact));
+        counts.set(item.category, base);
+        remainders.push({ category: item.category, rest: exact - base });
+        used += base;
+      }
+
+      while (used > floretCount) {
+        const candidate = [...counts.entries()]
+          .filter(([, count]) => count > 1)
+          .sort((a, b) => b[1] - a[1])[0];
+        if (!candidate) break;
+        counts.set(candidate[0], candidate[1] - 1);
+        used--;
+      }
+
+      for (const item of remainders.sort((a, b) => b.rest - a.rest)) {
+        if (used >= floretCount) break;
+        counts.set(item.category, (counts.get(item.category) || 0) + 1);
+        used++;
+      }
+
+      return counts;
+    }
+
+    function arrangeCategories(points, floretCount) {
+      const remaining = scaledCategoryCounts(points, floretCount);
+      const arranged = [];
+      while (arranged.length < floretCount) {
+        const candidates = [...remaining.entries()]
+          .filter(([, count]) => count > 0)
+          .map(([category, count]) => ({ category, count }))
+          .sort((a, b) => b.count - a.count || a.category.hue - b.category.hue);
+        if (!candidates.length) break;
+
+        const previous = arranged[arranged.length - 1];
+        const chosen = candidates.find(item => !previous || (item.category.key !== previous.key && hueDistance(item.category.hue, previous.hue) >= 64))
+          || candidates.find(item => !previous || item.category.key !== previous.key)
+          || candidates[0];
+        arranged.push(chosen.category);
+        remaining.set(chosen.category, remaining.get(chosen.category) - 1);
+      }
+      return arranged.length ? arranged : [categories[0]];
+    }
+
+    function point(origin, angle, distance) {
+      return { x: origin.x + Math.cos(angle) * distance, y: origin.y + Math.sin(angle) * distance };
+    }
+
+    function drawLeafPath(ctx, center, angle, length, width) {
+      const base = point(center, angle + Math.PI, length * 0.42);
+      const tip = point(center, angle, length * 0.58);
+      const left = point(center, angle - Math.PI * 0.5, width);
+      const right = point(center, angle + Math.PI * 0.5, width);
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.bezierCurveTo(left.x, left.y, point(tip, angle - Math.PI * 0.8, width).x, point(tip, angle - Math.PI * 0.8, width).y, tip.x, tip.y);
+      ctx.bezierCurveTo(point(tip, angle + Math.PI * 0.8, width).x, point(tip, angle + Math.PI * 0.8, width).y, right.x, right.y, base.x, base.y);
+      ctx.closePath();
+    }
+
+    function localPoint(center, angle, forward, side) {
+      return {
+        x: center.x + Math.cos(angle) * forward + Math.cos(angle + Math.PI * 0.5) * side,
+        y: center.y + Math.sin(angle) * forward + Math.sin(angle + Math.PI * 0.5) * side
+      };
+    }
+
+    function drawSepalPath(ctx, center, angle, length, width, curl, shape = "notched") {
+      const shapeConfig = {
+        round: { shoulder: 1.06, lobe: 0.34, notchDepth: 0.00, tip: 0.98, base: 0.50 },
+        notched: { shoulder: 1.04, lobe: 0.43, notchDepth: 0.16, tip: 1.00, base: 0.55 },
+        heart: { shoulder: 1.12, lobe: 0.58, notchDepth: 0.24, tip: 0.96, base: 0.48 },
+        slender: { shoulder: 0.72, lobe: 0.30, notchDepth: 0.10, tip: 1.10, base: 0.42 },
+        five: { shoulder: 0.98, lobe: 0.38, notchDepth: 0.12, tip: 1.00, base: 0.50 },
+        double: { shoulder: 0.94, lobe: 0.40, notchDepth: 0.14, tip: 0.98, base: 0.52 }
+      }[shape] || { shoulder: 1.04, lobe: 0.43, notchDepth: 0.16, tip: 1.00, base: 0.55 };
+
+      const base = localPoint(center, angle, length * 0.04, 0);
+      const waistLeft = localPoint(center, angle, length * 0.22, -width * (shapeConfig.base + curl * 0.06));
+      const shoulderLeft = localPoint(center, angle, length * 0.58, -width * (shapeConfig.shoulder + curl * 0.05));
+      const lobeLeft = localPoint(center, angle, length * 0.90, -width * shapeConfig.lobe);
+      const notch = localPoint(center, angle, length * (shapeConfig.tip - shapeConfig.notchDepth), 0);
+      const lobeRight = localPoint(center, angle, length * 0.90, width * shapeConfig.lobe);
+      const shoulderRight = localPoint(center, angle, length * 0.58, width * (shapeConfig.shoulder + curl * 0.05));
+      const waistRight = localPoint(center, angle, length * 0.22, width * (shapeConfig.base + curl * 0.06));
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.bezierCurveTo(waistLeft.x, waistLeft.y, shoulderLeft.x, shoulderLeft.y, lobeLeft.x, lobeLeft.y);
+      if (shapeConfig.notchDepth <= 0.01) {
+        const tip = localPoint(center, angle, length * shapeConfig.tip, 0);
+        ctx.quadraticCurveTo(localPoint(center, angle, length * 1.03, -width * 0.18).x, localPoint(center, angle, length * 1.03, -width * 0.18).y, tip.x, tip.y);
+        ctx.quadraticCurveTo(localPoint(center, angle, length * 1.03, width * 0.18).x, localPoint(center, angle, length * 1.03, width * 0.18).y, lobeRight.x, lobeRight.y);
+      } else {
+        ctx.quadraticCurveTo(localPoint(center, angle, length * 1.00, -width * 0.14).x, localPoint(center, angle, length * 1.00, -width * 0.14).y, notch.x, notch.y);
+        ctx.quadraticCurveTo(localPoint(center, angle, length * 1.00, width * 0.14).x, localPoint(center, angle, length * 1.00, width * 0.14).y, lobeRight.x, lobeRight.y);
+      }
+      ctx.bezierCurveTo(shoulderRight.x, shoulderRight.y, waistRight.x, waistRight.y, base.x, base.y);
+      ctx.closePath();
+    }
+
+    function drawShurikenSepalPath(ctx, center, angle, length, width) {
+      const base = localPoint(center, angle, length * 0.02, 0);
+      const left = localPoint(center, angle, length * 0.46, -width * 0.42);
+      const tip = localPoint(center, angle, length * 1.18, 0);
+      const right = localPoint(center, angle, length * 0.46, width * 0.42);
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.quadraticCurveTo(localPoint(center, angle, length * 0.30, -width * 0.62).x, localPoint(center, angle, length * 0.30, -width * 0.62).y, left.x, left.y);
+      ctx.quadraticCurveTo(localPoint(center, angle, length * 0.86, -width * 0.24).x, localPoint(center, angle, length * 0.86, -width * 0.24).y, tip.x, tip.y);
+      ctx.quadraticCurveTo(localPoint(center, angle, length * 0.86, width * 0.24).x, localPoint(center, angle, length * 0.86, width * 0.24).y, right.x, right.y);
+      ctx.quadraticCurveTo(localPoint(center, angle, length * 0.30, width * 0.62).x, localPoint(center, angle, length * 0.30, width * 0.62).y, base.x, base.y);
+      ctx.closePath();
+    }
+
+    function drawCreamCore(ctx, x, y, radius, glow = true) {
+      if (glow) {
+        ctx.save();
+        ctx.shadowBlur = radius * 4;
+        ctx.shadowColor = "rgba(251, 243, 221, .55)";
+        ctx.fillStyle = "rgba(251, 243, 221, .70)";
+        ctx.beginPath();
+        ctx.arc(x, y, radius * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = "rgba(251, 243, 221, .92)";
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawStemAndLeaves(ctx, size, center, params) {
+      const minSide = size;
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(111, 232, 92, .46)";
+      ctx.lineWidth = Math.max(1, minSide * 0.018);
+      ctx.shadowBlur = params.glowRadius * 0.6;
+      ctx.shadowColor = "rgba(111, 232, 92, .45)";
+      ctx.beginPath();
+      ctx.moveTo(center.x, minSide * 0.95);
+      ctx.bezierCurveTo(center.x - minSide * 0.025, minSide * 0.80, center.x + minSide * 0.035, minSide * 0.68, center.x, center.y + minSide * 0.16);
+      ctx.stroke();
+      ctx.restore();
+
+      for (const side of [-1, 1]) {
+        ctx.save();
+        const leafCenter = { x: center.x + side * minSide * 0.13, y: minSide * 0.76 };
+        drawLeafPath(ctx, leafCenter, side * -0.62, minSide * 0.24, minSide * 0.10);
+        ctx.fillStyle = "rgba(111, 232, 92, .16)";
+        ctx.strokeStyle = "rgba(111, 232, 92, .68)";
+        ctx.lineWidth = Math.max(0.8, minSide * 0.012);
+        ctx.shadowBlur = params.glowRadius * 0.7;
+        ctx.shadowColor = "rgba(111, 232, 92, .42)";
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawDomeUnderlay(ctx, size, params) {
+      if (params.preset === "lacecap") return;
+      const center = { x: size * 0.5, y: size * 0.50 };
+      const radius = size * (0.31 + params.domeStrength * 0.055);
+
+      ctx.save();
+      ctx.translate(center.x, center.y + radius * 0.48);
+      ctx.scale(1.05, 0.24);
+      ctx.fillStyle = "rgba(0, 0, 0, .14)";
+      ctx.filter = `blur(${Math.max(2, params.glowRadius * 0.55)}px)`;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.86, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.filter = "none";
+    }
+
+    function drawDomeHighlight(ctx, size, params) {
+      if (params.preset === "lacecap") return;
+      const center = { x: size * 0.5, y: size * 0.50 };
+      const radius = size * (0.31 + params.domeStrength * 0.055);
+
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.scale(1, 0.88);
+      const shine = ctx.createRadialGradient(-radius * 0.34, -radius * 0.38, 0, -radius * 0.34, -radius * 0.38, radius * 0.82);
+      shine.addColorStop(0, "rgba(255, 255, 255, .075)");
+      shine.addColorStop(0.30, "rgba(251, 243, 221, .032)");
+      shine.addColorStop(0.72, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = shine;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.98, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function makeFlorets(size, count, points, params) {
+      const center = { x: size * 0.5, y: size * 0.505 };
+      const arranged = arrangeCategories(points, count);
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      const maxRadius = size * (params.preset === "loose" ? 0.34 : params.preset === "lacecap" ? 0.32 : 0.285 + params.domeStrength * 0.035);
+      const baseSize = size * (count < 8 ? 0.18 : 0.148);
+      const result = [];
+
+      for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 0 : i / (count - 1);
+        let radiusRatio = Math.sqrt(t);
+        let angle = i * goldenAngle;
+        if (params.preset === "lacecap") radiusRatio = clamp(0.54 + radiusRatio * 0.46 + 0.08 * Math.sin(i * 1.7), 0, 1);
+        if (params.preset === "loose") angle += Math.sin(i * 2.13) * 0.22;
+
+        const domePull = params.domeStrength * 0.26;
+        const radius = maxRadius * radiusRatio * (1 - domePull * (1 - radiusRatio));
+        const sphereZ = Math.sqrt(Math.max(0, 1 - radiusRatio * radiusRatio));
+        const yLift = -sphereZ * size * params.domeStrength * 0.070 + Math.pow(radiusRatio, 2) * size * params.domeStrength * 0.018;
+        const edgeScale = 1 - params.domeStrength * 0.34 * radiusRatio;
+        const densityScale = 1 + params.domeStrength * 0.24 * sphereZ;
+        const jitter = params.preset === "loose" ? size * 0.025 : size * 0.010;
+        const jitterX = (noise(i + 31) * 2 - 1) * jitter;
+        const jitterY = (noise(i + 47) * 2 - 1) * jitter;
+        const x = center.x + Math.cos(angle) * radius + jitterX;
+        const y = center.y + Math.sin(angle) * radius * (0.70 - params.domeStrength * 0.10) + yLift + jitterY;
+        const floretSize = baseSize * edgeScale * densityScale * (params.preset === "lacecap" ? 1.05 : 1);
+        const faceAngle = Math.atan2(y - center.y, x - center.x);
+        const sideView = clamp((radiusRatio - 0.52) / 0.48, 0, 1) * params.domeStrength;
+        result.push({
+          x,
+          y,
+          category: arranged[i % arranged.length],
+          size: floretSize,
+          rotation: angle + (i % 4) * 0.27,
+          depth: sphereZ,
+          rim: radiusRatio,
+          faceAngle,
+          sideView,
+          layer: y + sphereZ * size * 0.20,
+          seed: i
+        });
+      }
+      return result.sort((a, b) => a.layer - b.layer);
+    }
+
+    function drawFloret(ctx, floret, params, crisp) {
+      const pinwheel = clamp(params.sepalOverlap, 0, 1);
+      const domeLight = 0.72 + floret.depth * 0.34;
+      const alpha = crisp ? params.glassOpacity * domeLight : Math.min(0.70, params.glassOpacity * 0.74 * domeLight);
+      const strokeAlpha = crisp ? 0.78 + floret.depth * 0.22 : 0.58 + floret.depth * 0.18;
+      const color = driftColor(floret.category, floret.seed, floret.depth, params.hueDrift, alpha);
+      const stroke = driftColor(floret.category, floret.seed, floret.depth, params.hueDrift, strokeAlpha);
+      const lineWidth = crisp ? Math.max(0.55, params.size * (0.007 + floret.depth * 0.004)) : Math.max(1, params.size * 0.020);
+      const radialSquash = 1 - floret.sideView * 0.55;
+      const isShuriken = params.sepalShape === "shuriken";
+      const petalCount = params.sepalShape === "five" ? 5 : 4;
+      const petalLength = floret.size * (isShuriken ? 0.76 : 0.70 - floret.sideView * 0.12);
+      const petalWidth = floret.size * (isShuriken ? 0.25 : 0.41 + pinwheel * 0.04);
+      const stepAngle = Math.PI * 2 / petalCount;
+
+      ctx.save();
+      ctx.translate(floret.x, floret.y);
+      ctx.rotate(floret.faceAngle);
+      ctx.scale(radialSquash, 1);
+      ctx.rotate(-floret.faceAngle);
+      if (!crisp) {
+        ctx.shadowBlur = params.glowRadius * params.pixelRatio * (0.78 + floret.depth * 0.34);
+        ctx.shadowColor = floret.category.color;
+      }
+      for (let petal = 0; petal < petalCount; petal++) {
+        const spin = floret.rotation + petal * stepAngle + pinwheel * (isShuriken ? 0.48 : 0.34);
+        const offset = point({ x: 0, y: 0 }, spin - 0.8, floret.size * pinwheel * (isShuriken ? 0.045 : 0.07));
+        if (params.sepalShape === "double") {
+          drawSepalPath(
+            ctx,
+            point(offset, spin + Math.PI * 0.25, floret.size * 0.055),
+            spin + Math.PI * 0.22,
+            petalLength * 0.70,
+            petalWidth * 0.70,
+            pinwheel,
+            "double"
+          );
+          ctx.fillStyle = driftColor(floret.category, floret.seed + 100, floret.depth, params.hueDrift, alpha * 0.72);
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = lineWidth * 0.74;
+          ctx.fill();
+          ctx.stroke();
+        }
+        if (isShuriken) {
+          drawShurikenSepalPath(ctx, { x: offset.x, y: offset.y }, spin, petalLength, petalWidth);
+        } else {
+          drawSepalPath(
+            ctx,
+            { x: offset.x, y: offset.y },
+            spin,
+            petalLength,
+            petalWidth,
+            pinwheel,
+            params.sepalShape
+          );
+        }
+        ctx.fillStyle = color;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = lineWidth;
+        ctx.fill();
+        ctx.stroke();
+        if (crisp && params.size > 80 && floret.depth > 0.34) {
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.16 + floret.depth * 0.20})`;
+          ctx.lineWidth = Math.max(0.35, lineWidth * 0.32);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      if (crisp && params.size > 80 && floret.depth > 0.22) {
+        drawCreamCore(ctx, floret.x, floret.y, floret.size * ((params.sepalShape === "five" ? 0.070 : 0.085) - floret.sideView * 0.035), false);
+      }
+    }
+
+    function drawBud(ctx, size, points, params) {
+      const center = { x: size * 0.5, y: size * 0.53 };
+      const arranged = arrangeCategories(points, 2);
+      const leafSize = size * 0.23;
+      for (let i = 0; i < 2; i++) {
+        const side = i === 0 ? -1 : 1;
+        const category = arranged[i] || arranged[0];
+        const c = { x: center.x + side * leafSize * 0.28, y: center.y };
+        ctx.save();
+        ctx.shadowBlur = params.glowRadius * params.pixelRatio;
+        ctx.shadowColor = category.color;
+        drawLeafPath(ctx, c, side * -0.95, leafSize, leafSize * 0.48);
+        ctx.fillStyle = driftColor(category, i, 1, params.hueDrift, params.glassOpacity * 0.75);
+        ctx.strokeStyle = category.color;
+        ctx.lineWidth = Math.max(0.9, size * 0.014);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+      drawCreamCore(ctx, center.x, center.y, size * 0.028);
+    }
+
+    function drawLacecapCenter(ctx, size, params) {
+      const center = { x: size * 0.5, y: size * 0.515 };
+      const dots = 18;
+      ctx.save();
+      ctx.shadowBlur = params.glowRadius * 0.55 * params.pixelRatio;
+      ctx.shadowColor = "rgba(251, 243, 221, .45)";
+      for (let i = 0; i < dots; i++) {
+        const r = Math.sqrt(i / dots) * size * 0.13;
+        const a = i * Math.PI * (3 - Math.sqrt(5));
+        const x = center.x + Math.cos(a) * r;
+        const y = center.y + Math.sin(a) * r * 0.72;
+        ctx.fillStyle = i % 3 === 0 ? "rgba(251, 243, 221, .74)" : "rgba(245, 239, 216, .34)";
+        ctx.beginPath();
+        ctx.arc(x, y, size * (i % 3 === 0 ? 0.010 : 0.007), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function renderHydrangea(canvas, options) {
+      const rect = canvas.getBoundingClientRect();
+      const cssSize = Math.max(1, Math.round(rect.width || canvas.width));
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(cssSize * pixelRatio);
+      canvas.height = Math.round(cssSize * pixelRatio);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      ctx.clearRect(0, 0, cssSize, cssSize);
+
+      const params = { ...state, ...options, size: cssSize, pixelRatio };
+      const count = clamp(Math.round(params.floretCount), 1, 24);
+      const center = { x: cssSize * 0.5, y: cssSize * 0.52 };
+
+      drawStemAndLeaves(ctx, cssSize, center, params);
+      if (count <= 2) {
+        drawBud(ctx, cssSize, params.points, params);
+        return;
+      }
+
+      drawDomeUnderlay(ctx, cssSize, params);
+      if (params.preset === "lacecap") drawLacecapCenter(ctx, cssSize, params);
+      const florets = makeFlorets(cssSize, count, params.points, params);
+      for (const floret of florets) drawFloret(ctx, floret, params, false);
+      for (const floret of florets) drawFloret(ctx, floret, params, true);
+      if (params.preset !== "lacecap") drawCreamCore(ctx, center.x, center.y, cssSize * 0.035);
+    }
+
+    function stageLabel(total) {
+      if (total <= 2) return "芽";
+      if (total <= 5) return "コスモス相当";
+      if (total <= 8) return "アネモネ相当";
+      if (total <= 16) return "ダリア相当";
+      return "大ダリア相当";
+    }
+
+    function syncStateFromInputs() {
+      for (const input of controls) {
+        const value = Number(input.value);
+        if (input.id in state.points) state.points[input.id] = value;
+        else state[input.id] = value;
+      }
+    }
+
+    function updateLabels() {
+      for (const input of controls) {
+        const target = document.querySelector(`[data-value="${input.id}"]`);
+        if (!target) continue;
+        target.textContent = input.step === "1" ? String(Math.round(Number(input.value))) : Number(input.value).toFixed(input.id === "glowRadius" ? 1 : 2);
+      }
+      const total = Object.values(state.points).reduce((sum, value) => sum + value, 0);
+      document.querySelector("#totalPoints").textContent = total;
+      document.querySelector("#stageLabel").textContent = stageLabel(total);
+    }
+
+    function renderComparisons() {
+      growthGrid.innerHTML = "";
+      const samples = [
+        { title: "芽", count: 2, points: { learning: 2 } },
+        { title: "少なめ", count: 6, points: { work: 4, care: 2 } },
+        { title: "ふつう", count: 12, points: { work: 5, learning: 4, social: 3 } },
+        { title: "頑張った日", count: 21, points: { work: 8, care: 6, exercise: 3, learning: 4 } }
+      ];
+
+      for (const sample of samples) {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        const canvas = document.createElement("canvas");
+        const label = document.createElement("div");
+        label.className = "tile-title";
+        label.textContent = sample.title;
+        tile.append(canvas, label);
+        growthGrid.append(tile);
+        renderHydrangea(canvas, { floretCount: sample.count, points: sample.points, glowRadius: Math.min(state.glowRadius, 6.5) });
+      }
+
+      miniStrip.innerHTML = "";
+      const mini = [
+        { count: 2, points: { learning: 2 } },
+        { count: 5, points: { work: 3, care: 2 } },
+        { count: 8, points: { exercise: 4, social: 4 } },
+        { count: 13, points: { work: 6, learning: 4, social: 3 } },
+        { count: 17, points: { work: 8, care: 6, exercise: 3 } },
+        { count: 24, points: { work: 6, care: 5, learning: 5, exercise: 4, social: 4 } }
+      ];
+      for (const sample of mini) {
+        const canvas = document.createElement("canvas");
+        canvas.className = "mini-cell";
+        miniStrip.append(canvas);
+        renderHydrangea(canvas, { floretCount: sample.count, points: sample.points, glowRadius: Math.min(state.glowRadius, 4.8) });
+      }
+    }
+
+    function renderAll() {
+      syncStateFromInputs();
+      updateLabels();
+      renderHydrangea(mainCanvas, {});
+      renderComparisons();
+    }
+
+    for (const input of controls) {
+      input.addEventListener("input", renderAll);
+    }
+
+    for (const button of document.querySelectorAll(".preset")) {
+      button.addEventListener("click", () => {
+        state.preset = button.dataset.preset;
+        for (const item of document.querySelectorAll(".preset")) item.setAttribute("aria-pressed", String(item === button));
+        for (const [key, value] of Object.entries(presets[state.preset])) {
+          const input = document.querySelector(`#${key}`);
+          input.value = value;
+          state[key] = value;
+        }
+        renderAll();
+      });
+    }
+
+    for (const button of document.querySelectorAll(".shape-choice")) {
+      button.addEventListener("click", () => {
+        state.sepalShape = button.dataset.shape;
+        for (const item of document.querySelectorAll(".shape-choice")) item.setAttribute("aria-pressed", String(item === button));
+        renderAll();
+      });
+    }
+
+    window.addEventListener("resize", renderAll);
+    renderAll();
+  </script>
+</body>
+</html>
