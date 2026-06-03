@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>茎の色 確認 — がんばっタネ</title>
+<style>
+  :root{ --navy:#16223D; }
+  *{box-sizing:border-box;}
+  body{margin:0;padding:32px;font-family:-apple-system,"Hiragino Sans",sans-serif;background:#f4f4f6;color:#1a1a1a;line-height:1.6;}
+  h1{font-size:22px;margin:0 0 4px;}
+  .lead{color:#555;font-size:14px;margin:0 0 22px;}
+  .panel{background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:22px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  label{font-weight:700;font-size:14px;}
+  input[type=range]{width:100%;margin-top:6px;}
+  .val{font-family:ui-monospace,monospace;color:#2a6;font-weight:700;}
+  .toggle{display:inline-flex;gap:6px;margin-top:10px;}
+  .toggle button{border:1px solid #ccc;background:#fafafa;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;}
+  .toggle button.active{background:#2a6;color:#fff;border-color:#2a6;}
+  .stage{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;}
+  .garden{background:var(--navy);border-radius:16px;padding:18px;flex:1;min-width:300px;
+           background-image:radial-gradient(circle at 30% 20%,rgba(255,255,255,.04),transparent 40%);}
+  .garden h3{color:#9fb0cc;font-size:12px;margin:0 0 12px;font-weight:600;}
+  .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;}
+  .info{flex:0 0 220px;font-size:13px;color:#444;}
+  .info .hex{font-family:ui-monospace,monospace;font-weight:700;}
+  .swatch{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:middle;margin-right:4px;}
+  .warn{font-size:12px;color:#9b1c1c;background:#fadcdc;border-radius:8px;padding:8px 10px;margin-top:10px;}
+  .good{font-size:12px;color:#136b2a;background:#d7f5dd;border-radius:8px;padding:8px 10px;margin-top:10px;}
+</style>
+</head>
+<body>
+  <h1>🌿 茎の色 確認</h1>
+  <p class="lead">
+    紺の庭に、<b>ライム（学習開発）</b>と<b>アクア（運動）</b>の花序を載せた紫陽花を3つ表示。<br>
+    茎の明るさ・色相を動かして、<b>「茎が花の色と紛れず、構造として沈んで見える」</b>ポイントを探してください。
+  </p>
+
+  <div class="panel">
+    <label>茎の明るさ（L）： <span class="val" id="lval">22</span>%</label>
+    <input type="range" id="lslider" min="8" max="55" step="1" value="22">
+    <label style="display:block;margin-top:14px;">茎の彩度（S）： <span class="val" id="sval">35</span>%</label>
+    <input type="range" id="sslider" min="0" max="70" step="1" value="35">
+    <div class="toggle" id="hue">
+      <span style="font-weight:700;font-size:14px;margin-right:6px;">色相：</span>
+      <button data-h="170" class="active">ティール(170°)</button>
+      <button data-h="150">緑寄り(150°)</button>
+      <button data-h="210">紺寄り(210°)</button>
+      <button data-h="0" data-gray="1">無彩色</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="garden">
+      <h3>夜の庭（紺 #16223D）</h3>
+      <div class="cells" id="cells"></div>
+    </div>
+    <div class="info">
+      <p>現在の茎色：<span class="swatch" id="sw"></span><span class="hex" id="stemhex"></span></p>
+      <p>花序（固定・glowするネオン正本）：<br>
+        <span class="swatch" style="background:#6FE85C"></span>ライム #6FE85C<br>
+        <span class="swatch" style="background:#25DDD0"></span>アクア #25DDD0</p>
+      <div id="verdict"></div>
+      <p style="color:#888;font-size:12px;margin-top:14px;">
+        ねらい：茎が花序より十分暗ければ、色相が緑/ティールでも「構造」として読め、緑の二重表現が解消する。
+      </p>
+    </div>
+  </div>
+
+<script>
+const NAVY="#16223D", LIME="#6FE85C", AQUA="#25DDD0";
+function hslToRgb(h,s,l){h/=360;s/=100;l/=100;let r,g,b;if(s===0){r=g=b=l;}else{const q=l<0.5?l*(1+s):l+s-l*s;const p=2*l-q;const hue=t=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};r=hue(h+1/3);g=hue(h);b=hue(h-1/3);}return[r*255,g*255,b*255];}
+function rgbToHex(r,g,b){const f=x=>Math.round(Math.max(0,Math.min(255,x))).toString(16).padStart(2,'0');return'#'+f(r)+f(g)+f(b);}
+function hexToRgb(h){h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+function relLum(r,g,b){const f=c=>{c/=255;return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b);}
+function contrast(a,b){const la=relLum(...hexToRgb(a)),lb=relLum(...hexToRgb(b));const hi=Math.max(la,lb),lo=Math.min(la,lb);return(hi+0.05)/(lo+0.05);}
+
+let hue=170, gray=false;
+const L=document.getElementById('lslider'), S=document.getElementById('sslider');
+
+function hydrangea(stem){
+  // glow florets: lime + aqua mixed cluster
+  const dots=[];
+  const pts=[[50,34],[40,40],[60,40],[34,50],[50,48],[66,50],[42,58],[58,58],[50,62]];
+  pts.forEach((p,i)=>{const c=i%2? AQUA:LIME;dots.push(`<circle cx="${p[0]}" cy="${p[1]}" r="7" fill="${c}" filter="url(#glow)"/>`);});
+  return `<svg viewBox="0 0 100 100" width="100%" height="100%">
+    <defs><filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <path d="M50 62 Q48 78 50 92" stroke="${stem}" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+    <path d="M50 76 q-13 -3 -18 -12 q12 0 18 8 Z" fill="${stem}"/>
+    <path d="M50 84 q13 -3 18 -12 q-12 0 -18 8 Z" fill="${stem}"/>
+    ${dots.join('')}
+  </svg>`;
+}
+
+function render(){
+  const l=+L.value, s=gray?0:+S.value;
+  document.getElementById('lval').textContent=l;
+  document.getElementById('sval').textContent=s;
+  const stem=rgbToHex(...hslToRgb(hue,s,l));
+  document.getElementById('cells').innerHTML=`<div class="cell">${hydrangea(stem)}</div><div class="cell">${hydrangea(stem)}</div><div class="cell">${hydrangea(stem)}</div>`;
+  document.getElementById('sw').style.background=stem;
+  document.getElementById('stemhex').textContent=stem.toUpperCase();
+  // verdict: stem should be much dimmer than florets, and recede toward navy
+  const cLime=contrast(stem,LIME), cAqua=contrast(stem,AQUA), cNavy=contrast(stem,NAVY);
+  const recede = cNavy<2.0;      // close to navy = recedes
+  const dimmer = cLime>=2.2 && cAqua>=2.2; // clearly separated from florets
+  let v='';
+  if(dimmer && recede) v='<div class="good">✓ 茎が花序から十分沈み、庭にも馴染む。緑の二重表現は解消。</div>';
+  else if(!dimmer) v='<div class="warn">△ 茎が花序（ライム/アクア）と明るさが近く、まだ「色」として競合ぎみ。もっと暗く。</div>';
+  else v='<div class="warn">△ 沈みすぎて庭から浮く/見えにくいかも。少し明るく。</div>';
+  v+=`<p style="font-size:11px;color:#888;margin-top:6px;">対ライム ${cLime.toFixed(1)} / 対アクア ${cAqua.toFixed(1)} / 対紺 ${cNavy.toFixed(1)}</p>`;
+  document.getElementById('verdict').innerHTML=v;
+}
+L.addEventListener('input',render); S.addEventListener('input',render);
+document.querySelectorAll('#hue button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#hue button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); hue=+b.dataset.h; gray=!!b.dataset.gray; render();
+}));
+render();
+</script>
+</body>
+</html>
