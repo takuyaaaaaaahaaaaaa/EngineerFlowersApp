@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>普段の日のマス比較（A: 紫陽花 / C: 草の色）</title>
+<style>
+  :root {
+    --navy: #14204a;
+    --navy-deep: #0e1736;
+    --paper: #f6f3ea;
+    --ink: #1c2340;
+    --grass: #2f6b4a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 48px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    line-height: 1.6;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 32px 0 8px; }
+  p { margin: 0 0 12px; font-size: 14px; }
+  .pair { display: flex; flex-wrap: wrap; gap: 20px; }
+  .panel { flex: 1 1 320px; min-width: 0; }
+  .panel h3 { font-size: 14px; margin: 0 0 8px; }
+  .garden {
+    background: var(--navy);
+    border-radius: 14px;
+    padding: 12px;
+    overflow-x: auto;
+  }
+  .month {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .month canvas {
+    width: 100%;
+    aspect-ratio: 1;
+    background: var(--navy-deep);
+    border-radius: 8px;
+    display: block;
+  }
+  .year {
+    display: grid;
+    grid-template-rows: repeat(7, 10px);
+    grid-auto-flow: column;
+    grid-auto-columns: 10px;
+    gap: 2px;
+    width: max-content;
+    margin: 0 auto;
+  }
+  .year i { display: block; border-radius: 2px; background: var(--grass); }
+  .year.a i { background: #1f3f33; position: relative; }
+  .year.a i.on::after {
+    content: "";
+    position: absolute;
+    inset: 1.5px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 4px var(--glow);
+  }
+  .year.c i.on { background: var(--c); box-shadow: 0 0 3px var(--glow); }
+  .year i.star, .year.a i.star::after {
+    background: #fffbe0 !important;
+    box-shadow: 0 0 6px 2px #fff3a0 !important;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; margin: 8px 0 0; }
+  .legend span::before {
+    content: "";
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--c);
+    margin-right: 5px;
+  }
+  button {
+    font: inherit; font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>普段の日のマス比較</h1>
+<p>量の軸を廃止した後の「普段の日」の描き方。同じ1年分のデータを、A案とC案で並べる。<br>
+草だけ＝何も記録のない日。白く強く光るマス＝願いが叶った日（特別な花）。</p>
+<div class="legend">
+  <span style="--c:#A77BFF">仕事</span>
+  <span style="--c:#FF5C9E">家事育児</span>
+  <span style="--c:#6FE85C">学習開発</span>
+  <span style="--c:#25DDD0">からだ</span>
+  <span style="--c:#FFC93C">趣味交流</span>
+</div>
+<p style="margin-top:12px"><button id="reroll">別のデータで見る</button></p>
+
+<h2>月の画面（30日）</h2>
+<div class="pair">
+  <div class="panel">
+    <h3>A. 同じ大きさの紫陽花に、あった種類の色が混ざる</h3>
+    <div class="garden"><div class="month" id="monthA"></div></div>
+  </div>
+  <div class="panel">
+    <h3>C. 草の色だけが変わる（花は特別な日だけ）</h3>
+    <div class="garden"><div class="month" id="monthC"></div></div>
+  </div>
+</div>
+
+<h2>年の画面（365日）</h2>
+<h3 style="font-size:14px;margin:0 0 8px">A. 紫陽花は小さな色の点になる</h3>
+<div class="garden"><div class="year a" id="yearA"></div></div>
+<h3 style="font-size:14px;margin:16px 0 8px">C. マスそのものが色づく（本家の草と同じ）</h3>
+<div class="garden"><div class="year c" id="yearC"></div></div>
+
+<script>
+  const COLORS = ["#A77BFF", "#FF5C9E", "#6FE85C", "#25DDD0", "#FFC93C"];
+  const GRASS = "#2f6b4a";
+  const GRASS_DARK = "#244C38";
+  const CREAM = "#FFF4D6";
+
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  // 1日 = { cats: カテゴリ番号の配列（空なら草だけ）, star: 願いが叶った日 }
+  function makeYear(seed) {
+    const rand = mulberry32(seed);
+    const days = [];
+    for (let i = 0; i < 365; i++) {
+      const cats = [];
+      if (rand() > 0.22) {
+        const weights = [0.55, 0.6, 0.2, 0.25, 0.2];
+        weights.forEach((w, c) => { if (rand() < w) cats.push(c); });
+      }
+      days.push({ cats, star: rand() < 0.025 });
+    }
+    days[16].star = true; // 月の画面にも必ず1つ特別な花を見せる
+    return days;
+  }
+
+  function setupCanvas(canvas) {
+    const size = 72;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.height = size * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    return { ctx, size };
+  }
+
+  function drawGrass(ctx, size, rand, colors) {
+    const blades = 9;
+    for (let i = 0; i < blades; i++) {
+      const x = size * (0.14 + 0.72 * (i / (blades - 1))) + (rand() - 0.5) * 4;
+      const h = size * (0.2 + rand() * 0.16);
+      const lean = (rand() - 0.5) * size * 0.18;
+      const color = colors.length ? colors[i % colors.length] : (i % 2 ? GRASS : GRASS_DARK);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      if (colors.length) { ctx.shadowColor = color; ctx.shadowBlur = 6; }
+      ctx.beginPath();
+      ctx.moveTo(x, size * 0.95);
+      ctx.quadraticCurveTo(x, size * 0.95 - h * 0.6, x + lean, size * 0.95 - h);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawFloret(ctx, x, y, r, color, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 5;
+    for (let p = 0; p < 4; p++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      ctx.ellipse(r * 0.52, 0, r * 0.56, r * 0.44, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = CREAM;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 大きさ・小花序の数は常に同じ。色だけがその日の種類で変わる。
+  function drawHydrangea(ctx, size, rand, cats) {
+    const cx = size / 2, cy = size * 0.42, R = size * 0.25;
+    ctx.strokeStyle = GRASS_DARK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(cx, size * 0.95);
+    ctx.lineTo(cx, cy);
+    ctx.stroke();
+    const count = 13;
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    for (let i = count - 1; i >= 0; i--) {
+      const d = R * Math.sqrt(i / (count - 1));
+      const a = i * golden;
+      const color = COLORS[cats[i % cats.length]];
+      drawFloret(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.9, R * 0.36, color, rand() * Math.PI);
+    }
+  }
+
+  function drawStarFlower(ctx, size) {
+    const cx = size / 2, cy = size * 0.42;
+    ctx.strokeStyle = GRASS_DARK;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(cx, size * 0.95);
+    ctx.lineTo(cx, cy);
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = "#fffbe0";
+    ctx.shadowColor = "#fff3a0";
+    ctx.shadowBlur = 16;
+    for (let p = 0; p < 8; p++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath();
+      ctx.ellipse(size * 0.15, 0, size * 0.15, size * 0.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#FFC93C";
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function renderMonth(el, days, variant, seed) {
+    el.replaceChildren();
+    days.forEach((day, i) => {
+      const canvas = document.createElement("canvas");
+      el.appendChild(canvas);
+      const { ctx, size } = setupCanvas(canvas);
+      const rand = mulberry32(seed + i * 97);
+      if (day.star) {
+        drawGrass(ctx, size, rand, []);
+        drawStarFlower(ctx, size);
+      } else if (variant === "A") {
+        drawGrass(ctx, size, rand, []);
+        if (day.cats.length) drawHydrangea(ctx, size, rand, day.cats);
+      } else {
+        drawGrass(ctx, size, rand, day.cats.map(c => COLORS[c]));
+      }
+    });
+  }
+
+  function renderYear(el, days) {
+    el.replaceChildren();
+    days.forEach(day => {
+      const cell = document.createElement("i");
+      if (day.star) {
+        cell.className = "on star";
+      } else if (day.cats.length) {
+        cell.className = "on";
+        const n = day.cats.length;
+        const stops = day.cats.map((c, k) => `${COLORS[c]} ${k / n * 360}deg ${(k + 1) / n * 360}deg`);
+        cell.style.setProperty("--c", n === 1 ? COLORS[day.cats[0]] : `conic-gradient(${stops.join(",")})`);
+        cell.style.setProperty("--glow", COLORS[day.cats[0]] + "88");
+      }
+      el.appendChild(cell);
+    });
+  }
+
+  let seed = 20261002;
+  function renderAll() {
+    const days = makeYear(seed);
+    const month = days.slice(0, 30);
+    renderMonth(document.getElementById("monthA"), month, "A", seed);
+    renderMonth(document.getElementById("monthC"), month, "C", seed);
+    renderYear(document.getElementById("yearA"), days);
+    renderYear(document.getElementById("yearC"), days);
+  }
+  document.getElementById("reroll").addEventListener("click", () => { seed += 7919; renderAll(); });
+  renderAll();
+</script>
+</body>
+</html>
