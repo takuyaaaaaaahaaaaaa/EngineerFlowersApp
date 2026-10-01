@@ -10,4 +10,5 @@
 | [stem-preview.html](stem-preview.html) | 茎・葉の色。紺の庭にライム/アクア花序を載せ、茎の明度・彩度・色相を振って「構造として沈むか」を確認 |
 | [hydrangea-prototype.html](hydrangea-prototype.html) | 紫陽花の形の検討（手まり咲き/額咲き/ゆるい房・萼形状・hueDrift等）。Canvas実描画。Codexプロトタイプ由来 |
 | [daily-cell-compare.html](daily-cell-compare.html) | 量の軸を廃止した後の「普段の日のマス」を、A（同じ大きさの紫陽花に色が混ざる）とC（草の色だけ変わる）で月30日・年365日に並べて比較。結果、月はA・年はCを採用。花の形は簡易描画 |
+| [seed-flick.html](seed-flick.html) | タネをはじいて飛ばす手触りの試作。スマホで指で触る前提。手元のタネを上にはじくと今日のマスへ飛び、着地して育って咲く。2つ目以降は毬に色が足される。飛ぶ速さ・弧の高さ・育つ時間を調整できる |
 | [hydrangea-bloom.html](hydrangea-bloom.html) | 咲くアニメ（花火ブルーム）。茎が伸びる→葉→破裂→放射。手まり咲き×浅い切れ込み固定。静か/本気・二段破裂・Reduce Motion切替 |
