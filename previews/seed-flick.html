@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>タネをはじく（手触りの試作）</title>
+<style>
+  :root { --navy: #14204a; --paper: #f6f3ea; --ink: #1c2340; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); }
+  body {
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, "Hiragino Sans", sans-serif;
+    color: var(--ink);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #stage { flex: 1 1 auto; min-height: 0; position: relative; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+  footer { flex: 0 0 auto; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); font-size: 13px; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .row + .row { margin-top: 6px; }
+  .add {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background: var(--c);
+    padding: 0;
+  }
+  button.text {
+    font: inherit;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+  }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; }
+  label { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  label span { flex: 0 0 9em; }
+  input[type=range] { flex: 1 1 auto; min-width: 0; }
+  output { flex: 0 0 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+<footer>
+  <div class="row">
+    <span>タネを足す</span>
+    <button class="add" data-cat="0" style="--c:#A77BFF" aria-label="仕事"></button>
+    <button class="add" data-cat="1" style="--c:#FF5C9E" aria-label="家事育児"></button>
+    <button class="add" data-cat="2" style="--c:#6FE85C" aria-label="学習開発"></button>
+    <button class="add" data-cat="3" style="--c:#25DDD0" aria-label="からだ"></button>
+    <button class="add" data-cat="4" style="--c:#FFC93C" aria-label="趣味交流"></button>
+    <button class="text" id="reset" style="margin-left:auto">やり直す</button>
+  </div>
+  <details>
+    <summary>手触りの調整</summary>
+    <label><span>飛ぶ速さ</span><input type="range" id="speed" min="0.5" max="2.5" step="0.1" value="1.2"><output></output></label>
+    <label><span>弧の高さ</span><input type="range" id="arc" min="0" max="260" step="10" value="120"><output></output></label>
+    <label><span>育つ時間(ms)</span><input type="range" id="grow" min="150" max="1400" step="50" value="550"><output></output></label>
+  </details>
+</footer>
+
+<script>
+  const COLORS = ["#A77BFF", "#FF5C9E", "#6FE85C", "#25DDD0", "#FFC93C"];
+  const NAVY = "#14204a", NAVY_DEEP = "#0e1736";
+  const GRASS = "#2f6b4a", GRASS_DARK = "#244C38", CREAM = "#FFF4D6";
+  const TODAY = 17;          // 30マスのうち「今日」の位置
+  const FLORETS = 13;        // 小花序の数はどの日も同じ
+  const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const bg = document.createElement("canvas");
+  const S = { speed: 1.2, arc: 120, grow: 550 };
+
+  let W = 0, H = 0, dpr = 1, grid = null;
+  let seeds = [], sparks = [], today = null, nextId = 1, drag = null;
+
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const easeOut = t => 1 - Math.pow(1 - t, 1.6);
+  const easeOutBack = t => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
+
+  // ---- 配置 ----
+  function layout() {
+    const rect = canvas.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    W = rect.width; H = rect.height;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    const gap = 6;
+    const trayH = 120;
+    const cell = Math.floor(Math.min((W - 24 - gap * 5) / 6, (H - trayH - 24 - gap * 4) / 5));
+    const gw = cell * 6 + gap * 5, gh = cell * 5 + gap * 4;
+    grid = { x: (W - gw) / 2, y: Math.max(12, (H - trayH - gh) / 2), cell, gap, trayY: H - 62 };
+    renderBackground();
+    layoutHand(true);
+  }
+
+  function cellRect(i) {
+    const col = i % 6, row = Math.floor(i / 6);
+    return {
+      x: grid.x + col * (grid.cell + grid.gap),
+      y: grid.y + row * (grid.cell + grid.gap),
+      size: grid.cell
+    };
+  }
+
+  function layoutHand(snap) {
+    const hand = seeds.filter(s => s.state !== "fly");
+    const spacing = Math.min(64, (W - 48) / Math.max(hand.length, 1));
+    const start = W / 2 - spacing * (hand.length - 1) / 2;
+    hand.forEach((s, i) => {
+      s.home = { x: start + spacing * i, y: grid.trayY };
+      if (snap && s.state === "hand") { s.x = s.home.x; s.y = s.home.y; }
+    });
+  }
+
+  // ---- 静的な描画 ----
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function drawGrass(c, r, rand) {
+    const n = 9;
+    c.save();
+    c.lineWidth = Math.max(1.6, r.size * 0.034);
+    c.lineCap = "round";
+    for (let i = 0; i < n; i++) {
+      const x = r.x + r.size * (0.14 + 0.72 * (i / (n - 1))) + (rand() - 0.5) * r.size * 0.06;
+      const h = r.size * (0.2 + rand() * 0.16);
+      const lean = (rand() - 0.5) * r.size * 0.18;
+      const base = r.y + r.size * 0.95;
+      c.strokeStyle = i % 2 ? GRASS : GRASS_DARK;
+      c.beginPath();
+      c.moveTo(x, base);
+      c.quadraticCurveTo(x, base - h * 0.6, x + lean, base - h);
+      c.stroke();
+    }
+    c.restore();
+  }
+
+  function drawFloret(c, x, y, r, color, angle) {
+    if (r <= 0.2) return;
+    c.save();
+    c.translate(x, y);
+    c.rotate(angle);
+    c.fillStyle = color;
+    c.shadowColor = color;
+    c.shadowBlur = r * 0.9;
+    for (let p = 0; p < 4; p++) {
+      c.rotate(Math.PI / 2);
+      c.beginPath();
+      c.ellipse(r * 0.52, 0, r * 0.56, r * 0.44, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.shadowBlur = 0;
+    c.fillStyle = CREAM;
+    c.beginPath();
+    c.arc(0, 0, r * 0.18, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
+  function floretLayout(r) {
+    const cx = r.x + r.size / 2, cy = r.y + r.size * 0.42, R = r.size * 0.25;
+    const list = [];
+    for (let i = 0; i < FLORETS; i++) {
+      const d = R * Math.sqrt(i / (FLORETS - 1));
+      const a = i * GOLDEN;
+      list.push({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d * 0.9, angle: (i * 1.7) % Math.PI });
+    }
+    return { cx, cy, R, list };
+  }
+
+  function drawStem(c, r, progress) {
+    const base = r.y + r.size * 0.95, top = r.y + r.size * 0.42;
+    const y = base + (top - base) * progress;
+    c.save();
+    c.strokeStyle = GRASS_DARK;
+    c.lineWidth = Math.max(2, r.size * 0.04);
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(r.x + r.size / 2, base);
+    c.lineTo(r.x + r.size / 2, y);
+    c.stroke();
+    c.restore();
+    return y;
+  }
+
+  function drawStaticFlower(c, r, cats) {
+    drawStem(c, r, 1);
+    const f = floretLayout(r);
+    for (let i = FLORETS - 1; i >= 0; i--) {
+      const p = f.list[i];
+      drawFloret(c, p.x, p.y, f.R * 0.36, COLORS[cats[i % cats.length]], p.angle);
+    }
+  }
+
+  function drawStar(c, r) {
+    drawStem(c, r, 1);
+    c.save();
+    c.translate(r.x + r.size / 2, r.y + r.size * 0.42);
+    c.fillStyle = "#fffbe0";
+    c.shadowColor = "#fff3a0";
+    c.shadowBlur = r.size * 0.22;
+    for (let p = 0; p < 8; p++) {
+      c.rotate(Math.PI / 4);
+      c.beginPath();
+      c.ellipse(r.size * 0.15, 0, r.size * 0.15, r.size * 0.05, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = "#FFC93C";
+    c.beginPath();
+    c.arc(0, 0, r.size * 0.06, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
+  function renderBackground() {
+    bg.width = W * dpr; bg.height = H * dpr;
+    const c = bg.getContext("2d");
+    c.scale(dpr, dpr);
+    c.fillStyle = NAVY;
+    roundRect(c, 6, 6, W - 12, H - 12, 18);
+    c.fill();
+    const rand = mulberry32(42);
+    for (let i = 0; i < 30; i++) {
+      const r = cellRect(i);
+      c.globalAlpha = i > TODAY ? 0.45 : 1;
+      c.fillStyle = NAVY_DEEP;
+      roundRect(c, r.x, r.y, r.size, r.size, 8);
+      c.fill();
+      c.globalAlpha = 1;
+      if (i >= TODAY) continue;       // 今日は動的に描く。明日以降はまだ来ていない
+      drawGrass(c, r, mulberry32(100 + i));
+      const cats = [];
+      if (rand() > 0.25) [0.55, 0.6, 0.2, 0.25, 0.2].forEach((w, k) => { if (rand() < w) cats.push(k); });
+      if (i === 9) drawStar(c, r);
+      else if (cats.length) drawStaticFlower(c, r, cats);
+    }
+  }
+
+  // ---- 今日のマス ----
+  function resetAll() {
+    today = { cats: [], t0: null, pop: new Array(FLORETS).fill(-1e9) };
+    sparks = [];
+    seeds = [];
+    [[2, "GitHub"], [3, "HealthKit"], [4, "X"]].forEach(([cat, from]) => addSeed(cat, from));
+    layoutHand(true);
+  }
+
+  function addSeed(cat, from) {
+    seeds.push({ id: nextId++, cat, from, state: "hand", x: W / 2, y: H + 30, home: { x: W / 2, y: H } });
+    layoutHand(false);
+  }
+
+  function land(seed, now) {
+    const color = COLORS[seed.cat];
+    const r = cellRect(TODAY);
+    burst(seed.x, seed.y, color, 8, r.size * 0.012, now);
+    if (navigator.vibrate) navigator.vibrate(12);
+    if (today.cats.includes(seed.cat)) return;
+    const before = today.cats.slice();
+    today.cats.push(seed.cat);
+    if (today.t0 === null) {
+      today.t0 = now;
+      today.firstColor = color;
+      return;
+    }
+    // すでに咲いている毬に色が足される：色の変わった小花序だけ弾む
+    for (let i = 0; i < FLORETS; i++) {
+      if (before[i % before.length] !== today.cats[i % today.cats.length]) today.pop[i] = now + i * 22;
+    }
+  }
+
+  function burst(x, y, color, count, power, now) {
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+      const v = power * (0.6 + Math.random() * 0.8);
+      sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, born: now, life: 420 + Math.random() * 200, color });
+    }
+  }
+
+  function drawToday(now) {
+    const r = cellRect(TODAY);
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,244,214,0.55)";
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, r.x - 1.5, r.y - 1.5, r.size + 3, r.size + 3, 9);
+    ctx.stroke();
+    ctx.restore();
+    drawGrass(ctx, r, mulberry32(100 + TODAY));
+    if (today.t0 === null) return;
+
+    const g = clamp((now - today.t0) / S.grow, 0, 1);
+    const tipY = drawStem(ctx, r, easeOut(g));
+    const f = floretLayout(r);
+    if (g < 1) {
+      ctx.save();
+      ctx.fillStyle = CREAM;
+      ctx.shadowColor = today.firstColor;
+      ctx.shadowBlur = r.size * 0.2;
+      ctx.beginPath();
+      ctx.arc(f.cx, tipY, r.size * 0.035, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+    const t = now - today.t0 - S.grow;
+    if (!today.burstDone) {
+      today.burstDone = true;
+      today.cats.forEach(k => burst(f.cx, f.cy, COLORS[k], 10, r.size * 0.016, now));
+      if (navigator.vibrate) navigator.vibrate([8, 30, 18]);
+    }
+    for (let i = FLORETS - 1; i >= 0; i--) {
+      const p = f.list[i];
+      const open = clamp((t - i * 20) / 420, 0, 1);
+      if (open <= 0) continue;
+      const e = easeOutBack(open);
+      const popT = clamp((now - today.pop[i]) / 320, 0, 1);
+      const pop = now >= today.pop[i] && popT < 1 ? 1 + 0.45 * Math.sin(popT * Math.PI) : 1;
+      const color = COLORS[today.cats[i % today.cats.length]];
+      drawFloret(ctx, f.cx + (p.x - f.cx) * e, f.cy + (p.y - f.cy) * e, f.R * 0.36 * e * pop, color, p.angle + (1 - open) * 2);
+    }
+  }
+
+  // ---- タネ ----
+  function drawSeed(s, now) {
+    const color = COLORS[s.cat];
+    const size = s.state === "fly" ? 9 : 13;
+    if (s.trail) {
+      s.trail.forEach((p, i) => {
+        ctx.globalAlpha = (i / s.trail.length) * 0.5;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size * 0.45 * (i / s.trail.length), 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.rot || 0);
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(0, -size);
+    ctx.bezierCurveTo(size * 0.9, -size * 0.2, size * 0.7, size, 0, size);
+    ctx.bezierCurveTo(-size * 0.7, size, -size * 0.9, -size * 0.2, 0, -size);
+    ctx.fill();
+    ctx.restore();
+    if (s.state === "hand" && s.from) {
+      ctx.fillStyle = "rgba(255,244,214,0.7)";
+      ctx.font = "10px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(s.from, s.home.x, s.home.y + 30);
+    }
+  }
+
+  function updateSeed(s, now) {
+    if (s.state === "hand") {
+      s.x += (s.home.x - s.x) * 0.2;
+      s.y += (s.home.y - s.y) * 0.2;
+      s.rot = 0;
+    } else if (s.state === "fly") {
+      const t = clamp((now - s.t0) / s.dur, 0, 1);
+      const e = easeOut(t), u = 1 - e;
+      const px = s.x, py = s.y;
+      s.x = u * u * s.p0.x + 2 * u * e * s.p1.x + e * e * s.p2.x;
+      s.y = u * u * s.p0.y + 2 * u * e * s.p1.y + e * e * s.p2.y;
+      s.rot = Math.atan2(s.y - py, s.x - px) + Math.PI / 2;
+      s.trail.push({ x: s.x, y: s.y });
+      if (s.trail.length > 12) s.trail.shift();
+      if (t >= 1) { land(s, now); s.done = true; }
+    }
+  }
+
+  function launch(s, vx, vy, now) {
+    const r = cellRect(TODAY);
+    const p0 = { x: s.x, y: s.y };
+    const p2 = { x: r.x + r.size / 2, y: r.y + r.size * 0.9 };
+    // はじいた向きは軌道の膨らみに効く。着地点は必ず今日のマス（狙わなくてよい）
+    const p1 = {
+      x: p0.x + (p2.x - p0.x) * 0.4 + clamp(vx * 220, -W / 2, W / 2) * 0.6,
+      y: Math.min(p0.y, p2.y) - S.arc
+    };
+    const dist = Math.hypot(p2.x - p0.x, p2.y - p0.y) + S.arc;
+    const flick = clamp(Math.hypot(vx, vy), 0.6, 2.2);
+    Object.assign(s, { state: "fly", p0, p1, p2, t0: now, dur: clamp(dist / (S.speed * flick), 220, 1100), trail: [] });
+    layoutHand(false);
+  }
+
+  // ---- 入力 ----
+  function pointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  canvas.addEventListener("pointerdown", e => {
+    const p = pointerPos(e);
+    let best = null, bestD = 40;
+    seeds.forEach(s => {
+      if (s.state !== "hand") return;
+      const d = Math.hypot(s.x - p.x, s.y - p.y);
+      if (d < bestD) { best = s; bestD = d; }
+    });
+    if (!best) return;
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* 合成イベントでは捕捉できない */ }
+    best.state = "drag";
+    drag = { seed: best, samples: [{ ...p, t: performance.now() }], startY: p.y };
+  });
+
+  canvas.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const p = pointerPos(e);
+    drag.seed.x = p.x; drag.seed.y = p.y;
+    drag.samples.push({ ...p, t: performance.now() });
+    if (drag.samples.length > 8) drag.samples.shift();
+  });
+
+  function release(e) {
+    if (!drag) return;
+    const now = performance.now();
+    const s = drag.seed, last = drag.samples[drag.samples.length - 1];
+    const ref = drag.samples.find(q => now - q.t <= 90) || drag.samples[0];
+    const dt = Math.max(last.t - ref.t, 1);
+    const vx = (last.x - ref.x) / dt, vy = (last.y - ref.y) / dt;   // px/ms
+    const movedUp = drag.startY - last.y;
+    drag = null;
+    if (e.type !== "pointercancel" && (vy < -0.25 || (movedUp > 70 && vy <= 0.05))) launch(s, vx, vy, now);
+    else s.state = "hand";
+  }
+  canvas.addEventListener("pointerup", release);
+  canvas.addEventListener("pointercancel", release);
+
+  document.querySelectorAll(".add").forEach(b => b.addEventListener("click", () => addSeed(Number(b.dataset.cat), "じぶん")));
+  document.getElementById("reset").addEventListener("click", resetAll);
+  Object.keys(S).forEach(key => {
+    const input = document.getElementById(key), out = input.nextElementSibling;
+    const sync = () => { S[key] = Number(input.value); out.textContent = input.value; };
+    input.addEventListener("input", sync);
+    sync();
+  });
+  window.addEventListener("resize", layout);
+
+  // ---- ループ ----
+  function frame(now) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(bg, 0, 0, W, H);
+    drawToday(now);
+
+    seeds.forEach(s => updateSeed(s, now));
+    seeds = seeds.filter(s => !s.done);
+    seeds.forEach(s => drawSeed(s, now));
+
+    sparks = sparks.filter(p => now - p.born < p.life);
+    sparks.forEach(p => {
+      const t = (now - p.born) / p.life;
+      p.x += p.vx * 16; p.y += p.vy * 16;
+      p.vx *= 0.94; p.vy *= 0.94;
+      ctx.globalAlpha = 1 - t;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    if (!seeds.length) {
+      ctx.fillStyle = "rgba(255,244,214,0.6)";
+      ctx.font = "13px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("下の色を押すと、タネを足せます", W / 2, grid.trayY + 4);
+    } else if (today.t0 === null && !drag) {
+      ctx.fillStyle = "rgba(255,244,214,0.6)";
+      ctx.font = "13px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("タネを上にはじく", W / 2, grid.trayY - 34);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  layout();
+  resetAll();
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>
